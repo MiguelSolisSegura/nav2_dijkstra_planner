@@ -3,7 +3,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
-
+#include <algorithm>
 #include "nav2_dijkstra_planner/nav2_dijkstra_planner.hpp"
 
 namespace nav2_dijkstra_planner {
@@ -269,38 +269,48 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
     const int &start_cell_index, const int &goal_cell_index,
     const std::vector<int> &costmap_flat, std::vector<int> &shortest_path) {
 
-  // boolean flag that keeps status of the search process
-  // true on success, false if goal was not reachable
-  bool path_found = false;
+    // boolean flag that keeps status of the search process
+    // true on success, false if goal was not reachable
+    bool path_found = false;
 
-  // empty data container that will store nodes and associated g_costs
-  std::vector<std::pair<int, double>> open_list;
+    // empty data container that will store nodes and associated g_costs
+    std::vector<std::pair<int, double>> open_list;
 
-  // empty set to keep track of already visited/closed nodes
-  std::unordered_set<int> closed_list;
+    // empty set to keep track of already visited/closed nodes
+    std::unordered_set<int> closed_list;
 
-  // a blank hash table for mapping children nodes to parents
-  std::unordered_map<int, int> parents;
+    // a blank hash table for mapping children nodes to parents
+    std::unordered_map<int, int> parents;
 
-  // an empty hash table to keep node indices and their associated g_cost
-  std::unordered_map<int, double> g_costs;
+    // an empty hash table to keep node indices and their associated g_cost
+    std::unordered_map<int, double> g_costs;
 
-  // keeps index value of current grid cell
-  int current_node;
+    // keeps index value of current grid cell
+    int current_node;
 
-  // set the start's node g_cost
-  g_costs[start_cell_index] = 0;
+    // set the start's node g_cost
+    g_costs[start_cell_index] = 0;
 
-  // put start_index along with it's g_cost into open_list
-  open_list.push_back(std::make_pair(start_cell_index, 0.0));
+    // put start_index along with it's g_cost into open_list
+    open_list.push_back(std::make_pair(start_cell_index, 0.0));
 
-  RCLCPP_INFO(node_->get_logger(), "Dijkstra: Done with initialization");
+    RCLCPP_INFO(node_->get_logger(), "Dijkstra: Done with initialization");
 
-  /** YOUR CODE STARTS HERE */
+    // Main loop over open list
+    while (!open_list.empty()) {
+        // Sort open list by distance cost
+        std::sort(open_list.begin(), open_list.end(), []
+        (const std::pair<int, double>& a, const std::pair<int, double>& b) 
+        {return a.second < b.second;});
+        // Update curent node
+        current_node = open_list[0].first;
+        open_list.erase(open_list.begin());
+        closed_list.insert(current_node);
+        // Find neighbors
+        std::unordered_map<int, double> neighbors = find_neighbors(current_node, costmap_flat);
+    }
 
-  /** YOUR CODE ENDS HERE */
-
-  return true;
+    return true;
 }
 
 void DijkstraGlobalPlanner::fromWorldToGrid(float &x, float &y) {
