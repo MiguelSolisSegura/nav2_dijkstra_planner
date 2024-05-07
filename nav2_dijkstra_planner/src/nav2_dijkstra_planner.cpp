@@ -306,8 +306,32 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
         current_node = open_list[0].first;
         open_list.erase(open_list.begin());
         closed_list.insert(current_node);
-        // Find neighbors
-        std::unordered_map<int, double> neighbors = find_neighbors(current_node, costmap_flat);
+        // Check if goal node has been reached
+        if (current_node == goal_cell_index) {
+            break;
+        }
+        // Find neighbors for current node
+        else {
+            std::unordered_map<int, double> neighbors = find_neighbors(current_node, costmap_flat);
+            for (const auto& pair : neighbors) {
+                // Skip neighbor if it belongs to the closed list
+                if (closed_list.count(pair.first) == 0) {
+                    break;
+                }
+                double neighbor_current_g = g_costs[pair.first];
+                // Neighbor exists and has a higher cost
+                if (neighbor_current_g != 0 && pair.second < neighbor_current_g) {
+                    g_costs[pair.first] = pair.second;
+                    parents[pair.first] = current_node;    
+                }
+                // Neighbor does not exists already
+                else if (neighbor_current_g == 0) {
+                    g_costs[pair.first] = pair.second;
+                    parents[pair.first] = current_node;
+                    open_list.push_back(std::make_pair(pair.first, pair.second));
+                }
+            }
+        }
     }
 
     return true;
