@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "nav2_dijkstra_planner/nav2_dijkstra_planner.hpp"
 
+using namespace std::chrono_literals;
+
 namespace nav2_dijkstra_planner {
 
 void DijkstraGlobalPlanner::configure(
@@ -304,10 +306,15 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
         {return a.second < b.second;});
         // Update curent node
         current_node = open_list[0].first;
+        RCLCPP_DEBUG(node_->get_logger(), "Current node: %i with cost: %.3f", current_node, g_costs[current_node]);
         open_list.erase(open_list.begin());
         closed_list.insert(current_node);
+        for (const auto& pair : open_list) {
+            RCLCPP_DEBUG(node_->get_logger(), "Node: %i has cost: %.3f", pair.first, pair.second);
+        }
         // Check if goal node has been reached
         if (current_node == goal_cell_index) {
+            path_found = true;
             break;
         }
         // Find neighbors for current node
@@ -315,25 +322,37 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
             std::unordered_map<int, double> neighbors = find_neighbors(current_node, costmap_flat);
             for (const auto& pair : neighbors) {
                 // Skip neighbor if it belongs to the closed list
-                if (closed_list.count(pair.first) == 0) {
-                    break;
-                }
-                double neighbor_current_g = g_costs[pair.first];
-                // Neighbor exists and has a higher cost
-                if (neighbor_current_g != 0 && pair.second < neighbor_current_g) {
-                    g_costs[pair.first] = pair.second;
-                    parents[pair.first] = current_node;    
+                if (closed_list.count(pair.first) > 0) {
+                    continue;
                 }
                 // Neighbor does not exists already
-                else if (neighbor_current_g == 0) {
-                    g_costs[pair.first] = pair.second;
+                double current_neighbor_cost =  pair.second + g_costs[current_node];
+                if (g_costs.count(pair.first) == 0) {
+                    g_costs[pair.first] = pair.second + g_costs[current_node];
                     parents[pair.first] = current_node;
-                    open_list.push_back(std::make_pair(pair.first, pair.second));
+                    open_list.push_back(std::make_pair(pair.first, current_neighbor_cost));
+                    RCLCPP_DEBUG(node_->get_logger(), "Pushing new element node: %i with cost %.3f", pair.first, g_costs[pair.first]);
+                    
+                }
+                // Neighbor exists and has a higher cost
+                else if (current_neighbor_cost < g_costs[pair.first]) {     
+                    g_costs[pair.first] = current_neighbor_cost;
+                    parents[pair.first] = current_node;    
                 }
             }
         }
     }
-
+    // Build the path
+    if (path_found) {
+        while (current_node != start_cell_index) {
+            shortest_path.push_back(current_node);
+            current_node = parents[current_node];
+        }
+        // Add the starting node
+        shortest_path.push_back(start_cell_index);
+        std::reverse(shortest_path.begin(), shortest_path.end());
+    }
+    RCLCPP_INFO(node_->get_logger(), "Path found: %s", path_found ? "true" : "false");
     return true;
 }
 
